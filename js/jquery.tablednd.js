@@ -373,7 +373,6 @@ jQuery.tableDnD = {
 
     jsonizeTable: function(table) {
         var result = [];
-        var paramName = table.tableDnDConfig.serializeParamName || table.id;
         var rows = table.rows;
         for (var i=0; i<rows.length; i++) {
             var rowId = null;
@@ -388,16 +387,15 @@ jQuery.tableDnD = {
                 result.push(rowId);
             }
         }
-        var json = {};
-        json[paramName] = result;
-        return json;
+        return result;
     },
 
     jsonizeTables: function() {
-        var result = "";
+        var result = {};
         this.each(function() {
             // this is now bound to each matching table
-            result += jQuery.tableDnD.jsonizeTable(this);
+            var paramName = this.id;
+            result[paramName] = jQuery.tableDnD.jsonizeTable(this);
         });
         return result;
     },
