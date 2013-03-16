@@ -1,11 +1,12 @@
 /**
+ * Source : https://github.com/nickl-/TableDnD
  * TableDnD plug-in for JQuery, allows you to drag and drop table rows
  * You can set up various options to control how the system will work
  * Copyright (c) Denis Howlett <denish@isocra.com>
  * Licensed like jQuery, see http://docs.jquery.com/License.
  *
  * Configuration options:
- * 
+ *
  * onDragStyle
  *     This is the style that is assigned to the row during drag. There are limitations to the styles that can be
  *     associated with a row (such as you can't assign a border--well you can, but it won't be
@@ -28,7 +29,7 @@
  *     Pass a function that will be called when the user starts dragging. The function takes 2 parameters: the
  *     table and the row which the user has started to drag.
  * onAllowDrop
- *     Pass a function that will be called as a row is over another row. If the function returns true, allow 
+ *     Pass a function that will be called as a row is over another row. If the function returns true, allow
  *     dropping on that row, otherwise not. The function takes 2 parameters: the dragged row and the row under
  *     the cursor. It returns a boolean: true allows the drop, false doesn't allow it.
  * scrollAmount
@@ -40,7 +41,7 @@
  *     specify this, then you are responsible for setting cursor: move in the CSS and only these cells
  *     will have the drag behaviour. If you do not specify a dragHandle, then you get the old behaviour where
  *     the whole row is draggable.
- * 
+ *
  * Other ways to control behaviour:
  *
  * Add class="nodrop" to any rows for which you don't want to allow dropping, and class="nodrag" to any rows
@@ -52,7 +53,7 @@
  *
  * Other methods:
  *
- * $("...").tableDnDUpdate() 
+ * $("...").tableDnDUpdate()
  * Will update all the matching tables, that is it will reapply the mousedown method to the rows (or handle cells).
  * This is useful if you have updated the table rows using Ajax and you want to make the table draggable again.
  * The table maintains the original configuration (so you don't have to specify it again).
@@ -63,7 +64,7 @@
  *
  * Known problems:
  * - Auto-scoll has some problems with IE7  (it scrolls even when it shouldn't), work-around: set scrollAmount to 0
- * 
+ *
  * Version 0.2: 2008-02-20 First public version
  * Version 0.3: 2008-02-07 Added onDragStart option
  *                         Made the scroll amount configurable (default is 5 as before)
@@ -78,6 +79,7 @@
  * Version 0.6: 2011-12-02 Added support for touch devices
  * Version 0.7  2012-04-09 Now works with jQuery 1.7 and supports touch, tidied up tabs and spaces
  */
+(function ($) {
 // Determine if this is a touch device
 var hasTouch = 'ontouchstart' in document.documentElement,
         startEvent = hasTouch ? 'touchstart' : 'mousedown',
@@ -90,7 +92,6 @@ if (hasTouch) {
     $.each("touchstart touchmove touchend".split(" "), function(i, name) {
         jQuery.event.fixHooks[name] = jQuery.event.mouseHooks;
     });
-    alert("has Touch");
 }
 
 jQuery.tableDnD = {
@@ -288,10 +289,9 @@ jQuery.tableDnD = {
             // effect dynamically
             var currentRow = jQuery.tableDnD.findDropTargetRow(dragObj, y);
             if (currentRow) {
-                // TODO worry about what happens when there are multiple TBODIES
-                if (movingDown && jQuery.tableDnD.dragObject != currentRow) {
+                if (movingDown && jQuery.tableDnD.dragObject != currentRow && (jQuery.tableDnD.dragObject.parentNode == currentRow.parentNode)) {
                     jQuery.tableDnD.dragObject.parentNode.insertBefore(jQuery.tableDnD.dragObject, currentRow.nextSibling);
-                } else if (! movingDown && jQuery.tableDnD.dragObject != currentRow) {
+                } else if (! movingDown && jQuery.tableDnD.dragObject != currentRow && (jQuery.tableDnD.dragObject.parentNode == currentRow.parentNode)) {
                     jQuery.tableDnD.dragObject.parentNode.insertBefore(jQuery.tableDnD.dragObject, currentRow);
                 }
             }
@@ -363,6 +363,33 @@ jQuery.tableDnD = {
         }
     },
 
+    jsonize: function() {
+        if (jQuery.tableDnD.currentTable) {
+            return jQuery.tableDnD.jsonizeTable(jQuery.tableDnD.currentTable);
+        } else {
+            return "Error: No Table id set, you need to set an id on your table and every row";
+        }
+    },
+
+    jsonizeTable: function(table) {
+        var result = "{";
+        var tableId = table.id;
+        var rows = table.rows;
+        result += '"' + tableId + '" : [';
+        for (var i=0; i<rows.length; i++) {
+
+            var rowId = rows[i].id;
+            if (rowId && rowId && table.tableDnDConfig && table.tableDnDConfig.serializeRegexp) {
+                rowId = rowId.match(table.tableDnDConfig.serializeRegexp)[0];
+            }
+
+            result += '"' + rowId + '"';
+            if (i<rows.length-1) result += ",";
+        }
+        result += "]}";
+        return result;
+    },
+
     serialize: function() {
         if (jQuery.tableDnD.currentTable) {
             return jQuery.tableDnD.serializeTable(jQuery.tableDnD.currentTable);
@@ -373,16 +400,21 @@ jQuery.tableDnD = {
 
     serializeTable: function(table) {
         var result = "";
-        var tableId = table.id;
+        var paramName = table.tableDnDConfig.serializeParamName || table.id;
         var rows = table.rows;
         for (var i=0; i<rows.length; i++) {
             if (result.length > 0) result += "&";
-            var rowId = rows[i].id;
-            if (rowId && rowId && table.tableDnDConfig && table.tableDnDConfig.serializeRegexp) {
-                rowId = rowId.match(table.tableDnDConfig.serializeRegexp)[0];
+            var rowId = null;
+            if (table.tableDnDConfig.dragHandle) {
+                var handle = jQuery(table.tableDnDConfig.dragHandle, rows[i]);
+                rowId = handle.attr('id');
+            } else {
+                rowId = rows[i].id;
             }
-
-            result += tableId + '[]=' + rowId;
+            if (rowId && table.tableDnDConfig && table.tableDnDConfig.serializeRegexp) {
+                rowId = rowId.match(table.tableDnDConfig.serializeRegexp)[0];
+                result += paramName + '[]=' + rowId;
+            }
         }
         return result;
     },
@@ -405,3 +437,4 @@ jQuery.fn.extend(
         tableDnDSerialize: jQuery.tableDnD.serializeTables
     }
 );
+})(jQuery);
