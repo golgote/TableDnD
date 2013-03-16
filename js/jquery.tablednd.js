@@ -372,21 +372,33 @@ jQuery.tableDnD = {
     },
 
     jsonizeTable: function(table) {
-        var result = "{";
-        var tableId = table.id;
+        var result = [];
+        var paramName = table.tableDnDConfig.serializeParamName || table.id;
         var rows = table.rows;
-        result += '"' + tableId + '" : [';
         for (var i=0; i<rows.length; i++) {
-
-            var rowId = rows[i].id;
-            if (rowId && rowId && table.tableDnDConfig && table.tableDnDConfig.serializeRegexp) {
-                rowId = rowId.match(table.tableDnDConfig.serializeRegexp)[0];
+            var rowId = null;
+            if (table.tableDnDConfig.dragHandle) {
+                var handle = jQuery(table.tableDnDConfig.dragHandle, rows[i]);
+                rowId = handle.attr('id');
+            } else {
+                rowId = rows[i].id;
             }
-
-            result += '"' + rowId + '"';
-            if (i<rows.length-1) result += ",";
+            if (rowId && table.tableDnDConfig && table.tableDnDConfig.serializeRegexp) {
+                rowId = rowId.match(table.tableDnDConfig.serializeRegexp)[0];
+                result.push(rowId);
+            }
         }
-        result += "]}";
+        var json = {};
+        json[paramName] = result;
+        return json;
+    },
+
+    jsonizeTables: function() {
+        var result = "";
+        this.each(function() {
+            // this is now bound to each matching table
+            result += jQuery.tableDnD.jsonizeTable(this);
+        });
         return result;
     },
 
@@ -434,7 +446,8 @@ jQuery.fn.extend(
     {
         tableDnD : jQuery.tableDnD.build,
         tableDnDUpdate : jQuery.tableDnD.updateTables,
-        tableDnDSerialize: jQuery.tableDnD.serializeTables
+        tableDnDSerialize : jQuery.tableDnD.serializeTables,
+        tableDnDJsonize: jQuery.tableDnD.jsonizeTables
     }
 );
 })(jQuery);
